@@ -42,13 +42,14 @@ def get_brightness_info():
         sys.exit(1)
 
 
-def set_brightness(device, value):
+def set_brightness(device, value, max_brightness):
     """
     Function to set brightness using DBus
 
     Args:
         device (str): The device to set the brightness for
         value (int): The brightness value to set
+        max_brightness (int): The maximum brightness value
 
     Returns:
         None
@@ -56,6 +57,9 @@ def set_brightness(device, value):
     Raises:
         Exception: If there's an error setting the brightness
     """
+    # Use min to ensure value doesn't exceed max_brightness
+    value = min(value, max_brightness)
+
     try:
         bus = dbus.SystemBus()
         proxy = bus.get_object(
@@ -175,7 +179,7 @@ def main():
 
         set_value = sys.argv[2]
         new_brightness = parse_set_value(set_value, current_brightness, max_brightness)
-        set_brightness(device, new_brightness)
+        set_brightness(device, new_brightness, max_brightness)
 
     else:
         print_help()
