@@ -3,7 +3,11 @@
 import os
 import sys
 
-import dbus
+try:
+    import dbus
+except ImportError:
+    print("Error: DBus Python module not found. Please install it.")
+    sys.exit(1)
 
 
 def get_brightness_info():
