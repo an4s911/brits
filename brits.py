@@ -6,8 +6,16 @@ import sys
 import dbus
 
 
-# Function to get the brightness and max brightness values from sysfs
 def get_brightness_info():
+    """
+    Function to get the brightness and max brightness values from sysfs
+
+    Returns:
+        tuple: A tuple containing the current brightness and max brightness values
+
+    Raises:
+        Exception: If there's an error reading the brightness info
+    """
     try:
         # Assuming there's only one backlight device
         backlight_dir = "/sys/class/backlight"
@@ -34,8 +42,20 @@ def get_brightness_info():
         sys.exit(1)
 
 
-# Function to set brightness using DBus
 def set_brightness(device, value):
+    """
+    Function to set brightness using DBus
+
+    Args:
+        device (str): The device to set the brightness for
+        value (int): The brightness value to set
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If there's an error setting the brightness
+    """
     try:
         bus = dbus.SystemBus()
         proxy = bus.get_object(
@@ -49,8 +69,10 @@ def set_brightness(device, value):
         sys.exit(1)
 
 
-# Function to print help message
 def print_help():
+    """
+    Function to print help message
+    """
     help_msg = """
     Usage: brits <command> [options]
 
@@ -71,8 +93,21 @@ def print_help():
     print(help_msg)
 
 
-# Function to parse set value (percentage, raw, increment/decrement)
 def parse_set_value(value, current_brightness, max_brightness):
+    """
+    Function to parse set value (percentage, raw, increment/decrement)
+
+    Args:
+        value (str): The value to parse
+        current_brightness (int): The current brightness
+        max_brightness (int): The maximum brightness
+
+    Returns:
+        int: The parsed value
+
+    Raises:
+        ValueError: If the value is invalid
+    """
     try:
         if value.endswith("%"):
             percentage = int(value[:-1])
@@ -109,8 +144,13 @@ def parse_set_value(value, current_brightness, max_brightness):
         sys.exit(1)
 
 
-# Main function
 def main():
+    """
+    Main function
+
+    Returns:
+        None
+    """
     if len(sys.argv) < 2:
         print_help()
         sys.exit(1)
