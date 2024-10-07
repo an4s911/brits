@@ -12,6 +12,10 @@
   - Set brightness using raw values (e.g., `200`).
   - Set brightness using percentage values (e.g., `60%`).
   - Increment or decrement brightness using either raw values or percentages (e.g., `20+`, `10%-`).
+ 
+## Motivation
+
+I was using `brightnessctl`, but it didn't always give me the proper percentage values, which was a bit annoying. So, I decided to build my own tool in Python instead. I checked out the source code of `brightnessctl` and found that it uses DBus, so I ported that functionality into Python. Now, `brits` gives accurate percentage values and works just how I wanted it to!
 
 ## Installation
 
