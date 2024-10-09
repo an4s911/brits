@@ -1,6 +1,6 @@
 # Brits - A Simple Linux Brightness Control Script
 
-`brits` is a Python script to get and set the screen brightness on Linux systems using the DBus interface. It supports retrieving the brightness in both percentage and raw values, as well as setting brightness via raw values or percentages, with options to increment or decrement.
+`brits` is a Python script to get and set the screen brightness on Linux systems. It supports retrieving the brightness in both percentage and raw values, as well as setting brightness via raw values or percentages, with options to increment or decrement.
 
 ## Features
 
@@ -15,9 +15,12 @@
  
 ## Motivation
 
-I was using `brightnessctl`, but it didn't always give me the proper percentage values, which was a bit annoying. So, I decided to build my own tool in Python instead. I checked out the source code of `brightnessctl` and found that it uses DBus, so I ported that functionality into Python. Now, `brits` gives accurate percentage values and works just how I wanted it to!
+I was using `brightnessctl`, but it didn't always give me the proper percentage values, which was a bit annoying. So, I decided to build my own tool in Python instead. I checked out the source code of `brightnessctl` and found that it uses DBus, so I ported that functionality into Python initially, but now I've updated it and it doesn't use DBus anymore. Now, `brits` gives accurate percentage values and works just how I wanted it to!
 
 ## Installation
+
+### Dependencies
+\**the only dependency is `python3`.*
 
 1. **Clone the repository:**
     ```bash
@@ -25,18 +28,12 @@ I was using `brightnessctl`, but it didn't always give me the proper percentage 
     cd brits
     ```
 
-2. **Install dependencies:**
-    - Make sure you have `dbus-python` installed:
-    ```bash
-    pip install dbus-python
-    ```
-
-3. **Make the script executable:**
+2. **Make the script executable:**
     ```bash
     chmod +x brits.py
     ```
 
-4. **(Optional)**: You can add the script to your PATH for easier access:
+3. **(Optional)**: You can add the script to your PATH for easier access:
     ```bash
     sudo cp brits.py /usr/local/bin/brits
     ```
@@ -52,12 +49,12 @@ I was using `brightnessctl`, but it didn't always give me the proper percentage 
   
 - **Get brightness as percentage explicitly:**
     ```bash
-    brits get --percentage
+    brits get p[ercentage] 
     ```
 
 - **Get raw brightness value:**
     ```bash
-    brits get --raw
+    brits get r[aw]
     ```
 
 ### Set Brightness

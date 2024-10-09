@@ -1,80 +1,81 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import sys
 
-try:
-    import dbus
-except ImportError:
-    print("Error: DBus Python module not found. Please install it.")
-    sys.exit(1)
+BACKLIGHT_DIR = "/sys/class/backlight"
+_device = os.listdir(BACKLIGHT_DIR)[0]
+MAX_BRIGHTNESS = int(
+    open(os.path.join(BACKLIGHT_DIR, _device, "max_brightness")).read().strip()
+)
+CURRENT_BRIGHTNESS = int(
+    open(os.path.join(BACKLIGHT_DIR, _device, "actual_brightness")).read().strip()
+)
+CURRENT_PERCENTAGE = round((CURRENT_BRIGHTNESS / MAX_BRIGHTNESS) * 100)
+BRIGHTNESS_FILE = os.path.join(BACKLIGHT_DIR, _device, "brightness")
 
 
-def get_brightness_info():
-    """
-    Function to get the brightness and max brightness values from sysfs
-
-    Returns:
-        tuple: A tuple containing the current brightness and max brightness values
-
-    Raises:
-        Exception: If there's an error reading the brightness info
-    """
-    try:
-        # Assuming there's only one backlight device
-        backlight_dir = "/sys/class/backlight"
-        devices = os.listdir(backlight_dir)
-
-        if len(devices) == 0:
-            print("No backlight device found.")
-            sys.exit(1)
-
-        device = devices[0]
-        brightness_file = os.path.join(backlight_dir, device, "brightness")
-        max_brightness_file = os.path.join(backlight_dir, device, "max_brightness")
-
-        with open(brightness_file, "r") as f:
-            current_brightness = int(f.read().strip())
-
-        with open(max_brightness_file, "r") as f:
-            max_brightness = int(f.read().strip())
-
-        return current_brightness, max_brightness, device
-
-    except Exception as e:
-        print(f"Error reading brightness info: {e}")
-        sys.exit(1)
+def set_raw(value: int):
+    value = max(min(value, MAX_BRIGHTNESS), 0)
+    with open(BRIGHTNESS_FILE, "w") as f:
+        f.write(str(value))
 
 
-def set_brightness(device, value, max_brightness):
-    """
-    Function to set brightness using DBus
+def set_inc_raw(increment: int):
+    set_raw(CURRENT_BRIGHTNESS + increment)
 
-    Args:
-        device (str): The device to set the brightness for
-        value (int): The brightness value to set
-        max_brightness (int): The maximum brightness value
 
-    Returns:
-        None
+def set_dec_raw(decrement: int):
+    set_raw(CURRENT_BRIGHTNESS - decrement)
 
-    Raises:
-        Exception: If there's an error setting the brightness
-    """
-    # Use min to ensure value doesn't exceed max_brightness
-    value = min(value, max_brightness)
 
-    try:
-        bus = dbus.SystemBus()
-        proxy = bus.get_object(
-            "org.freedesktop.login1", "/org/freedesktop/login1/session/auto"
-        )
-        interface = dbus.Interface(proxy, "org.freedesktop.login1.Session")
-        interface.SetBrightness("backlight", device, dbus.UInt32(value))
-        print(f"Brightness set to {value}.")
-    except dbus.DBusException as e:
-        print(f"Error setting brightness via DBus: {e}")
-        sys.exit(1)
+def set_percentage(percentage: int):
+    percentage = max(min(percentage, 100), 0)
+    value = round((percentage / 100) * MAX_BRIGHTNESS)
+    set_raw(value)
+
+
+def set_inc_percentage(increment: int):
+    set_percentage(CURRENT_PERCENTAGE + increment)
+
+
+def set_dec_percentage(decrement: int):
+    set_percentage(CURRENT_PERCENTAGE - decrement)
+
+
+def parse_set_value(value: str) -> list:
+    match = re.match(r"(\d+)(.{0,2})", value)
+    value_int = int(match.group(1))
+    percentage, plus_minus = sorted(list(match.group(2).ljust(2, "&")))
+
+    is_percentage = percentage == "%"
+    is_plus = plus_minus == "+"
+    is_minus = plus_minus == "-"
+
+    return value_int, is_percentage, is_plus, is_minus
+
+
+def set_handler(value: str):
+    value_int, is_percentage, is_plus, is_minus = parse_set_value(value)
+
+    if not any([is_percentage, is_plus, is_minus]):
+        set_raw(value_int)
+
+    if is_plus:
+        if is_percentage:
+            set_inc_percentage(value_int)
+        else:
+            set_inc_raw(value_int)
+    elif is_minus:
+        if is_percentage:
+            set_dec_percentage(value_int)
+        else:
+            set_dec_raw(value_int)
+    elif is_percentage:
+        set_percentage(value_int)
+    else:
+        set_raw(value_int)
 
 
 def print_help():
@@ -85,9 +86,8 @@ def print_help():
     Usage: brits <command> [options]
 
     Commands:
-        get               Get the current brightness as percentage (default).
-        get --percentage  Get the current brightness as percentage.
-        get --raw         Get the current brightness as raw value.
+        get [p(ercentage)]  Get the current brightness as percentage (default).
+        get r(aw)           Get the current brightness as raw value.
 
         set <value>       Set the brightness to the specified value.
                          Possible values:
@@ -99,57 +99,6 @@ def print_help():
                             - 10%-   (decrement percentage)
     """
     print(help_msg)
-
-
-def parse_set_value(value, current_brightness, max_brightness):
-    """
-    Function to parse set value (percentage, raw, increment/decrement)
-
-    Args:
-        value (str): The value to parse
-        current_brightness (int): The current brightness
-        max_brightness (int): The maximum brightness
-
-    Returns:
-        int: The parsed value
-
-    Raises:
-        ValueError: If the value is invalid
-    """
-    try:
-        if value.endswith("%"):
-            percentage = int(value[:-1])
-            return int((percentage / 100) * max_brightness)
-
-        elif value.endswith("+") or value.endswith("-"):
-            is_percentage = "%" in value
-            increment_value = int(value[:-2]) if is_percentage else int(value[:-1])
-
-            if value.endswith("+"):
-                if is_percentage:
-                    return min(
-                        max_brightness,
-                        current_brightness
-                        + int((increment_value / 100) * max_brightness),
-                    )
-                else:
-                    return min(max_brightness, current_brightness + increment_value)
-            elif value.endswith("-"):
-                if is_percentage:
-                    return max(
-                        0,
-                        current_brightness
-                        - int((increment_value / 100) * max_brightness),
-                    )
-                else:
-                    return max(0, current_brightness - increment_value)
-
-        else:
-            return int(value)
-
-    except ValueError:
-        print(f"Invalid brightness value: {value}")
-        sys.exit(1)
 
 
 def main():
@@ -165,25 +114,20 @@ def main():
 
     command = sys.argv[1]
 
-    current_brightness, max_brightness, device = get_brightness_info()
-
     if command == "get":
-        if len(sys.argv) == 2 or sys.argv[2] == "--percentage":
-            percentage = (current_brightness / max_brightness) * 100
-            print(f"Current brightness: {round(percentage)}%")
-        elif sys.argv[2] == "--raw":
-            print(f"Current brightness: {current_brightness}")
+        if len(sys.argv) == 2 or "percentage".startswith(sys.argv[2]):
+            print(f"{CURRENT_PERCENTAGE}%")
+        elif "raw".startswith(sys.argv[2]):
+            print(CURRENT_BRIGHTNESS)
         else:
             print_help()
 
     elif command == "set":
-        if len(sys.argv) < 3:
+        if len(sys.argv) != 3:
             print_help()
             sys.exit(1)
 
-        set_value = sys.argv[2]
-        new_brightness = parse_set_value(set_value, current_brightness, max_brightness)
-        set_brightness(device, new_brightness, max_brightness)
+        set_handler(sys.argv[2])
 
     else:
         print_help()
